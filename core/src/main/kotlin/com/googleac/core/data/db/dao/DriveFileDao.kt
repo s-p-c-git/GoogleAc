@@ -22,7 +22,7 @@ interface DriveFileDao {
     @Query("SELECT * FROM drive_files ORDER BY account_id, name ASC")
     fun observeAllFiles(): Flow<List<DriveFileEntity>>
 
-    /** Full-text semantic search within an account's files */
+    /** Full-text semantic search within a specific account's files */
     @Query("""
         SELECT * FROM drive_files 
         WHERE account_id = :accountId 
@@ -30,6 +30,16 @@ interface DriveFileDao {
         ORDER BY name ASC
     """)
     fun searchFiles(accountId: String, query: String): Flow<List<DriveFileEntity>>
+
+    /** Full-text semantic search across all accounts (for the unified explorer) */
+    @Query("""
+        SELECT * FROM drive_files 
+        WHERE name LIKE '%' || :query || '%' 
+           OR semantic_index_text LIKE '%' || :query || '%' 
+           OR indexable_text LIKE '%' || :query || '%'
+        ORDER BY account_id, name ASC
+    """)
+    fun searchAllFiles(query: String): Flow<List<DriveFileEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFiles(files: List<DriveFileEntity>)

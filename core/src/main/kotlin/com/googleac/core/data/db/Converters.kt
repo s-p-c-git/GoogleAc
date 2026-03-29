@@ -3,10 +3,13 @@ package com.googleac.core.data.db
 import androidx.room.TypeConverter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class Converters {
     companion object {
-        private val moshi = Moshi.Builder().build()
+        private val moshi = Moshi.Builder()
+            .addLast(KotlinJsonAdapterFactory())
+            .build()
     }
 
     @TypeConverter

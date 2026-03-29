@@ -39,8 +39,8 @@ class AiSummarizer @Inject constructor() {
             // Truncate to model context window (Gemini Nano supports ~4096 tokens ~= 16KB chars)
             val truncated = text.take(16_000)
 
-            // Check if Gemini Nano / AICore is available on this device
-            return@withContext if (isAiCoreAvailable()) {
+            // Check if Gemini Nano / AICore is enabled on this device
+            return@withContext if (isGeminiNanoEnabled()) {
                 summarizeWithGeminiNano(truncated, maxBullets)
             } else {
                 extractiveSummarize(truncated, maxBullets)
@@ -62,8 +62,8 @@ class AiSummarizer @Inject constructor() {
             val queryTokens = tokenize(query)
             corpus.entries
                 .map { (fileId, text) ->
-                    val docTokens = tokenize(text)
-                    val score = queryTokens.count { it in docTokens }.toDouble() / (queryTokens.size + 1)
+                    val docTokenSet = tokenize(text).toSet()
+                    val score = queryTokens.count { it in docTokenSet }.toDouble() / (queryTokens.size + 1)
                     fileId to score
                 }
                 .filter { it.second > 0.0 }
@@ -90,12 +90,12 @@ class AiSummarizer @Inject constructor() {
                 .distinct()
         }
 
-    private fun isAiCoreAvailable(): Boolean {
-        // Check for Google AICore service availability
-        // This requires the com.google.android.aicore package to be installed
-        // On Pixel 8+ devices with Android 14+, this is pre-installed
-        return false // Disabled until AICore API is stable and publicly available
-    }
+    /**
+     * Feature flag for Gemini Nano / AICore on-device inference.
+     * Returns true only when the AICore SDK is publicly available and integrated.
+     * Currently disabled — falls back to extractive summarization on all devices.
+     */
+    private fun isGeminiNanoEnabled(): Boolean = false
 
     private suspend fun summarizeWithGeminiNano(text: String, maxBullets: Int): List<String> {
         // Gemini Nano via AICore SDK (com.google.android.gms:play-services-tasks)

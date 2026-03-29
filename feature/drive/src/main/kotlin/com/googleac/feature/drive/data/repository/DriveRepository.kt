@@ -27,9 +27,13 @@ class DriveRepository @Inject constructor(
     fun observeAllFiles(): Flow<List<DriveFileEntity>> =
         driveFileDao.observeAllFiles()
 
-    /** Search files using local DB full-text index */
+    /** Search files using local DB full-text index within a specific account */
     fun searchFiles(accountId: String, query: String): Flow<List<DriveFileEntity>> =
         driveFileDao.searchFiles(accountId, query)
+
+    /** Search files across all accounts (unified explorer search) */
+    fun searchAllFiles(query: String): Flow<List<DriveFileEntity>> =
+        driveFileDao.searchAllFiles(query)
 
     /**
      * Refresh files from Drive API and update local DB.
@@ -92,8 +96,8 @@ class DriveRepository @Inject constructor(
             moshi.adapter(com.googleac.feature.drive.data.model.DriveCapabilities::class.java).toJson(it)
         }
         // Truncate indexable text to 128KB for semantic search
-        val maxLen = 128 * 1024
-        val indexText = contentHints?.indexableText?.take(maxLen)
+        val maxSemanticIndexBytes = 128 * 1024
+        val indexText = contentHints?.indexableText?.take(maxSemanticIndexBytes)
         return DriveFileEntity(
             fileId = id,
             accountId = accountId,

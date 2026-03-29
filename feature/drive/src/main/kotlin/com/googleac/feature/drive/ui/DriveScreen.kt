@@ -16,13 +16,16 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
@@ -32,6 +35,9 @@ import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -151,6 +157,37 @@ private fun FileDetailPane(
     val canRename = capabilities?.contains("\"canRename\":true") == true
     val canMove = capabilities?.contains("\"canMoveItemWithinDrive\":true") == true
 
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameInput by remember(file.fileId) { mutableStateOf(file.name) }
+
+    if (showRenameDialog) {
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("Rename File") },
+            text = {
+                OutlinedTextField(
+                    value = renameInput,
+                    onValueChange = { renameInput = it },
+                    label = { Text("New name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (renameInput.isNotBlank()) {
+                            onRename(renameInput.trim())
+                        }
+                        showRenameDialog = false
+                    }
+                ) { Text("Rename") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -165,19 +202,20 @@ private fun FileDetailPane(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        file.size?.let {
-            Text(
-                text = "Size: ${it / 1024} KB",
-                style = MaterialTheme.typography.bodySmall
-            )
+        file.size?.let { bytes ->
+            val sizeText = when {
+                bytes < 1024 -> "$bytes B"
+                bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
+                else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
+            }
+            Text(text = "Size: $sizeText", style = MaterialTheme.typography.bodySmall)
         }
         file.modifiedTime?.let {
             Text(text = "Modified: $it", style = MaterialTheme.typography.bodySmall)
         }
-        // Role-based action buttons (disabled when not permitted)
+        // Role-based action buttons (disabled when not permitted per Drive API capabilities)
         Row(modifier = Modifier.fillMaxWidth()) {
-            // TODO: Replace placeholder rename with a dialog that collects user input
-            IconButton(onClick = { onRename("Renamed_${file.name}") }, enabled = canRename) {
+            IconButton(onClick = { showRenameDialog = true }, enabled = canRename) {
                 Icon(Icons.Default.Edit, contentDescription = "Rename")
             }
             IconButton(onClick = { onDelete() }, enabled = canDelete) {

@@ -9,6 +9,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,21 +33,16 @@ class DriveViewModel @Inject constructor(
     private val _files = _searchQuery
         .flatMapLatest { query ->
             if (query.isBlank()) repository.observeAllFiles()
-            else repository.searchFiles(accountId = "", query = query) // empty = all accounts
+            else repository.searchAllFiles(query)
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val uiState: StateFlow<DriveUiState> = MutableStateFlow(DriveUiState()).also { state ->
-        viewModelScope.launch {
-            _files.collect { files ->
-                state.value = DriveUiState(
-                    files = files,
-                    isSearching = _isSearching.value,
-                    searchQuery = _searchQuery.value
-                )
-            }
-        }
-    }
+    val uiState: StateFlow<DriveUiState> = combine(_files, _isSearching, _searchQuery) { files, searching, query ->
+        DriveUiState(
+            files = files,
+            isSearching = searching,
+            searchQuery = query
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DriveUiState())
 
     fun toggleSearch() {
         _isSearching.value = !_isSearching.value
