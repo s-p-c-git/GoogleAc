@@ -62,4 +62,6 @@ dependencies {
     implementation(libs.lifecycle.runtime.compose)
 
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.mockito.kotlin)
 }
