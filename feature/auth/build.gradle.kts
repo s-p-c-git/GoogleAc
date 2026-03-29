@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.retrofit)
     implementation(libs.okhttp)
+    implementation(libs.androidx.browser)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
 

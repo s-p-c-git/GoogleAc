@@ -17,6 +17,18 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Read oauth.client_id from local.properties (kept out of VCS).
+        // Developers must add:  oauth.client_id=<your-client-id>.apps.googleusercontent.com
+        val localProps = java.util.Properties().apply {
+            val f = rootProject.file("local.properties")
+            if (f.exists()) load(f.inputStream())
+        }
+        buildConfigField(
+            "String",
+            "OAUTH_CLIENT_ID",
+            "\"${localProps.getProperty("oauth.client_id", "")}\""
+        )
     }
 
     buildTypes {
@@ -34,6 +46,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
