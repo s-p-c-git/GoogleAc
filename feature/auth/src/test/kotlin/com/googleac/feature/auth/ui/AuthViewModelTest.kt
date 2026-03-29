@@ -92,7 +92,8 @@ class AuthViewModelTest {
         viewModel.handleAuthRedirect("${OAuthPkceHelper.REDIRECT_URI}?code=test_code")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(AuthUiState.Success("user@gmail.com"), viewModel.uiState.value)
+        val state = viewModel.uiState.value as AuthUiState.Success
+        assertEquals("user@gmail.com", state.email)
     }
 
     @Test
@@ -143,7 +144,34 @@ class AuthViewModelTest {
     @Test
     fun `handleAuthResult transitions state to Success with the given email`() {
         viewModel.handleAuthResult("user@example.com")
-        assertEquals(AuthUiState.Success("user@example.com"), viewModel.uiState.value)
+        val state = viewModel.uiState.value
+        assertTrue(state is AuthUiState.Success)
+        assertEquals("user@example.com", (state as AuthUiState.Success).email)
+    }
+
+    @Test
+    fun `handleAuthResult Success carries a non-blank accountId`() {
+        viewModel.handleAuthResult("user@example.com")
+        val state = viewModel.uiState.value as AuthUiState.Success
+        assertTrue("accountId must not be blank", state.accountId.isNotBlank())
+    }
+
+    @Test
+    fun `handleAuthResult produces the same accountId for the same email`() {
+        viewModel.handleAuthResult("stable@example.com")
+        val id1 = (viewModel.uiState.value as AuthUiState.Success).accountId
+        viewModel.handleAuthResult("stable@example.com")
+        val id2 = (viewModel.uiState.value as AuthUiState.Success).accountId
+        assertEquals("accountId must be deterministic", id1, id2)
+    }
+
+    @Test
+    fun `handleAuthResult produces distinct accountIds for different emails`() {
+        viewModel.handleAuthResult("alice@example.com")
+        val idAlice = (viewModel.uiState.value as AuthUiState.Success).accountId
+        viewModel.handleAuthResult("bob@example.com")
+        val idBob = (viewModel.uiState.value as AuthUiState.Success).accountId
+        assertTrue("Different emails must produce different accountIds", idAlice != idBob)
     }
 
     @Test
@@ -188,6 +216,7 @@ class AuthViewModelTest {
     fun `multiple handleAuthResult calls keep the most recent email`() {
         viewModel.handleAuthResult("first@example.com")
         viewModel.handleAuthResult("second@example.com")
-        assertEquals(AuthUiState.Success("second@example.com"), viewModel.uiState.value)
+        val state = viewModel.uiState.value as AuthUiState.Success
+        assertEquals("second@example.com", state.email)
     }
 }

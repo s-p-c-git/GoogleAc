@@ -31,6 +31,9 @@ class AccountRepository @Inject constructor(
     /** Returns the total number of registered accounts. */
     suspend fun getAccountCount(): Int = accountDao.getAccountCount()
 
+    /** Returns a single account by [accountId], or null if not found. */
+    suspend fun getAccount(accountId: String): AccountEntity? = accountDao.getAccount(accountId)
+
     /**
      * Add (or replace) an account.
      *
@@ -43,6 +46,14 @@ class AccountRepository @Inject constructor(
         accountDao.insertAccount(account)
         val newCount = accountDao.getAccountCount()
         Log.d(TAG, "addAccount: done — total accounts=$newCount")
+    }
+
+    /**
+     * Update an existing account's fields (e.g., enabled features after the onboarding step).
+     */
+    suspend fun updateAccount(account: AccountEntity) {
+        Log.d(TAG, "updateAccount: id=${account.accountId} features=${account.enabledFeatures}")
+        accountDao.updateAccount(account)
     }
 
     /**

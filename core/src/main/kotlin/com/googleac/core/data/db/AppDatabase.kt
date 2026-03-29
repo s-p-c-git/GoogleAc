@@ -10,7 +10,7 @@ import com.googleac.core.data.db.entity.DriveFileEntity
 
 @Database(
     entities = [AccountEntity::class, DriveFileEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

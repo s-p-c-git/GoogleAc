@@ -25,15 +25,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun AuthScreen(
-    onAuthSuccess: () -> Unit,
+    onAuthSuccess: (accountId: String, email: String) -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) {
-            onAuthSuccess()
+        val state = uiState
+        if (state is AuthUiState.Success) {
+            onAuthSuccess(state.accountId, state.email)
         }
     }
 

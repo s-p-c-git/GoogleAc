@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -23,7 +24,8 @@ sealed class AuthUiState {
      */
     data class AwaitingRedirect(val authUrl: String) : AuthUiState()
 
-    data class Success(val email: String) : AuthUiState()
+    /** Authentication succeeded. [accountId] is a stable, URL-safe hash derived from [email]. */
+    data class Success(val accountId: String, val email: String) : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }
 
@@ -107,7 +109,10 @@ class AuthViewModel @Inject constructor(
                     redirectUri = OAuthPkceHelper.REDIRECT_URI
                 )
                 pendingCodeVerifier = null
-                _uiState.value = AuthUiState.Success(result.email)
+                _uiState.value = AuthUiState.Success(
+                    accountId = derivedAccountId(result.email),
+                    email = result.email
+                )
             } catch (e: Exception) {
                 _uiState.value = AuthUiState.Error(e.message ?: "Token exchange failed")
             }
@@ -118,11 +123,26 @@ class AuthViewModel @Inject constructor(
     // drive state directly (e.g., tests, instrumented flows). ────────────────
 
     fun handleAuthResult(email: String) {
-        _uiState.value = AuthUiState.Success(email)
+        _uiState.value = AuthUiState.Success(accountId = derivedAccountId(email), email = email)
     }
 
     fun handleAuthError(message: String) {
         _uiState.value = AuthUiState.Error(message)
+    }
+
+    /**
+     * Derives a stable, URL-safe account ID from [email].
+     *
+     * Takes the first 8 bytes of SHA-256(lowercase(email)) and hex-encodes them,
+     * yielding a 16-character string.  Eight bytes provide 2^64 ≈ 1.8 × 10^19
+     * distinct IDs — effectively collision-free for a personal productivity app
+     * where the total number of accounts is in the single digits.  The full 32
+     * bytes are not needed and a shorter ID keeps Navigation route paths concise.
+     */
+    private fun derivedAccountId(email: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256")
+            .digest(email.lowercase().trim().toByteArray(Charsets.UTF_8))
+        return bytes.take(8).joinToString("") { "%02x".format(it) }
     }
 }
 

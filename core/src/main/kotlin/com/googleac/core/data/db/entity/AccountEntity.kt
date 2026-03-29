@@ -35,7 +35,18 @@ data class AccountEntity(
     val isActive: Boolean = false,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+
+    /**
+     * Features explicitly enabled for this account.
+     *
+     * Stored as a JSON array of [AccountFeature] names (e.g. `["DRIVE","TASKS"]`).
+     * An empty list means no features are enabled yet — the user either skipped
+     * the [com.googleac.feature.auth.ui.FeatureEnablementScreen] or has not yet
+     * selected any features.
+     */
+    @ColumnInfo(name = "enabled_features")
+    val enabledFeatures: List<String> = emptyList()
 )
 
 enum class PersonaType {

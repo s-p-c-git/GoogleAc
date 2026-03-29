@@ -1,5 +1,7 @@
 package com.googleac.feature.auth.data
 
+import com.squareup.moshi.Json
+import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
@@ -13,21 +15,37 @@ import javax.inject.Singleton
  * OkHttp-backed implementation of [OAuthTokenExchanger].
  *
  * Uses a form-encoded POST to `https://oauth2.googleapis.com/token` (the
- * standard Google token endpoint) and extracts fields from the JSON response
- * with simple regex patterns, avoiding the need for a JSON library dependency
- * in this module.
+ * standard Google token endpoint).  The JSON response is parsed with [Moshi]
+ * (the same singleton instance used by the Drive module) to correctly handle
+ * escaped characters and any future response structure changes.
  *
  * The user's email address is extracted from the OIDC `id_token` claim using
- * [java.util.Base64] URL-safe decoding (available since Android 8 / minSdk 26).
+ * [java.util.Base64] URL-safe decoding (requires minSdk 26 / Android 8).
  */
 @Singleton
 class OAuthRetrofitTokenExchanger @Inject constructor(
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val moshi: Moshi
 ) : OAuthTokenExchanger {
 
     companion object {
         private const val TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
     }
+
+    // ── Moshi model for the Google token endpoint response ───────────────────
+
+    private data class TokenResponse(
+        @Json(name = "access_token") val accessToken: String,
+        @Json(name = "refresh_token") val refreshToken: String?,
+        @Json(name = "id_token") val idToken: String
+    )
+
+    /** Subset of the OIDC id_token JWT payload — only the fields we need. */
+    private data class IdTokenPayload(
+        @Json(name = "email") val email: String?
+    )
+
+    // ── OAuthTokenExchanger ──────────────────────────────────────────────────
 
     override suspend fun exchangeCode(
         clientId: String,
@@ -59,41 +77,31 @@ class OAuthRetrofitTokenExchanger @Inject constructor(
         parseTokenResponse(responseBody)
     }
 
-    // ── Response parsing ─────────────────────────────────────────────────────
+    // ── Parsing ──────────────────────────────────────────────────────────────
 
     private fun parseTokenResponse(json: String): TokenExchangeResult {
-        val accessToken = extractStringField(json, "access_token")
-            ?: error("No access_token in token response")
-        val refreshToken = extractStringField(json, "refresh_token")
-        val idToken = extractStringField(json, "id_token")
-            ?: error("No id_token in token response")
-        val email = extractEmailFromIdToken(idToken)
+        val adapter = moshi.adapter(TokenResponse::class.java)
+        val response = requireNotNull(adapter.fromJson(json)) {
+            "Failed to parse token response"
+        }
+        val email = extractEmailFromIdToken(response.idToken)
         return TokenExchangeResult(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
+            accessToken = response.accessToken,
+            refreshToken = response.refreshToken,
             email = email,
-            idToken = idToken
+            idToken = response.idToken
         )
     }
 
     /**
-     * Extracts the value of a JSON string field by name using a simple regex.
-     * Sufficient for the well-defined Google token response structure.
-     */
-    internal fun extractStringField(json: String, fieldName: String): String? =
-        Regex(""""${Regex.escape(fieldName)}"\s*:\s*"([^"]+)"""")
-            .find(json)
-            ?.groupValues
-            ?.get(1)
-
-    /**
      * Decodes the payload section of an OIDC JWT and extracts the `email` claim.
      *
-     * Uses [java.util.Base64] URL-safe decoding (requires minSdk 26).
+     * Base64url-decodes the middle segment of the JWT, then uses [Moshi] to parse
+     * the JSON payload.  Uses [java.util.Base64] URL-safe decoding (requires minSdk 26).
      */
     internal fun extractEmailFromIdToken(idToken: String): String {
         val parts = idToken.split(".")
-        require(parts.size >= 2) { "id_token does not have the expected JWT structure" }
+        require(parts.size >= 2) { "id_token does not have the expected JWT structure (got ${parts.size} part(s))" }
         val payload = parts[1]
         // Base64url padding: length must be a multiple of 4
         val padded = payload + "=".repeat((4 - payload.length % 4) % 4)
@@ -101,10 +109,12 @@ class OAuthRetrofitTokenExchanger @Inject constructor(
             Base64.getUrlDecoder().decode(padded),
             Charsets.UTF_8
         )
-        return Regex(""""email"\s*:\s*"([^"]+)"""")
-            .find(payloadJson)
-            ?.groupValues
-            ?.get(1)
-            ?: error("No email claim found in id_token payload")
+        val adapter = moshi.adapter(IdTokenPayload::class.java)
+        val parsed = requireNotNull(adapter.fromJson(payloadJson)) {
+            "Failed to parse id_token payload"
+        }
+        return requireNotNull(parsed.email) {
+            "No email claim found in id_token payload"
+        }
     }
 }
