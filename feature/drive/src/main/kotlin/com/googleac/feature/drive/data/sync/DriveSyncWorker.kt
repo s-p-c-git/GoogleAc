@@ -9,6 +9,7 @@ import com.googleac.feature.auth.data.TokenManager
 import com.googleac.feature.drive.data.repository.DriveRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 
 /**
  * WorkManager periodic sync worker.
@@ -26,9 +27,11 @@ class DriveSyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            val accounts = accountDao.observeAllAccounts()
-            // Use a single-shot collect via first() equivalent
-            // Each active account is synced independently
+            val accounts = accountDao.observeAllAccounts().first()
+            for (account in accounts) {
+                val accessToken = tokenManager.getAccessToken(account.accountId) ?: continue
+                driveRepository.syncFiles(account.accountId, accessToken)
+            }
             Result.success()
         } catch (e: Exception) {
             Result.retry()

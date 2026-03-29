@@ -32,7 +32,7 @@ class DriveViewModel @Inject constructor(
     private val _files = _searchQuery
         .flatMapLatest { query ->
             if (query.isBlank()) repository.observeAllFiles()
-            else repository.searchFiles("", query)
+            else repository.searchFiles(accountId = "", query = query) // empty = all accounts
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

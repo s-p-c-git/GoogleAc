@@ -5,7 +5,9 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 
 class Converters {
-    private val moshi = Moshi.Builder().build()
+    companion object {
+        private val moshi = Moshi.Builder().build()
+    }
 
     @TypeConverter
     fun fromStringList(value: String?): List<String>? {

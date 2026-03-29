@@ -3,8 +3,6 @@ package com.googleac.core.ui.components
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
-import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
-import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,8 +17,7 @@ import androidx.compose.ui.Modifier
 fun AdaptiveListDetailLayout(
     modifier: Modifier = Modifier,
     listPane: @Composable () -> Unit,
-    detailPane: @Composable () -> Unit,
-    supportingPane: (@Composable () -> Unit)? = null
+    detailPane: @Composable () -> Unit
 ) {
     val navigator = rememberListDetailPaneScaffoldNavigator<Any>()
 

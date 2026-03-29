@@ -176,6 +176,7 @@ private fun FileDetailPane(
         }
         // Role-based action buttons (disabled when not permitted)
         Row(modifier = Modifier.fillMaxWidth()) {
+            // TODO: Replace placeholder rename with a dialog that collects user input
             IconButton(onClick = { onRename("Renamed_${file.name}") }, enabled = canRename) {
                 Icon(Icons.Default.Edit, contentDescription = "Rename")
             }
