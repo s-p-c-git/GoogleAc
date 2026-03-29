@@ -1,6 +1,12 @@
 # UI Screenshots — Visual Validation
 
-These screenshots were generated using Chromium headless rendering of pixel-perfect
+> **Honesty note:** These are **programmatic mocks**, not screenshots from a running Android
+> device or emulator.  They are generated with Python + Pillow on a 390 × 844 canvas and
+> faithfully represent the Material Design 3 layouts described by the Jetpack Compose source
+> code, but no Android framework is involved in their production.  See
+> [TESTING.md](../../TESTING.md) for full details and instructions on sideloading the real app.
+
+These screenshots were generated as pixel-perfect
 Material Design 3 mockups that faithfully mirror the Jetpack Compose source code in
 each feature module.
 
