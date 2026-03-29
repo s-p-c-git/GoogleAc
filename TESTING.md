@@ -24,6 +24,7 @@ Each mock faithfully mirrors the Kotlin source code in the corresponding feature
 | Screenshot | Source it mirrors |
 |---|---|
 | `auth_idle.png`, `auth_error.png`, `auth_success.png` | `feature/auth/…/ui/AuthScreen.kt` — 4 `AuthUiState` cases |
+| `feature_enablement_idle.png`, `feature_enablement_partial.png`, `feature_enablement_all_enabled.png` | `feature/auth/…/ui/FeatureEnablementScreen.kt` — 3 `FeatureEnablementViewModel` states |
 | `drive_list.png`, `drive_detail.png`, `drive_search.png` | `feature/drive/…/ui/DriveScreen.kt` — `ListDetailPaneScaffold` |
 | `multi_account_list.png` | `AccountRepository.addAccount` log flow + `AccountDao` |
 | `drive_files_per_account.png` | `DriveRepository.observeRootFiles` per-account partitioning |
@@ -137,8 +138,9 @@ Or open the project in **Android Studio**, select your device from the toolbar, 
 | Tap "Sign in" | A Chrome Custom Tab opens Google's consent screen |
 | Grant permissions | Drive file access + profile scopes are requested |
 | Redirect back | `MainActivity` receives the `com.googleac.app:/oauth2redirect` intent; auth code is exchanged for tokens |
+| **Feature enablement** | `FeatureEnablementScreen` appears — toggle the Google services you want (Drive, Calendar, Tasks, AI Summarizer) per account, then tap **Continue** (or **Skip for now**) |
 | Drive screen | `DriveScreen` loads — root files for the signed-in account appear |
-| Add a second account | Repeat the sign-in flow; the app stores each account in Room with a unique `accountId` |
+| Add a second account | Repeat the sign-in flow; each account gets its own feature enablement step and its own `accountId` in Room |
 | File list | Both accounts' files appear with colour-coded chips (`ac1` purple, `ac2` blue) |
 | Move a file | Long-press a file → "Move to account" → select the destination account |
 
@@ -167,7 +169,8 @@ Test classes and what they cover:
 | Class | Tests | Validates |
 |---|---|---|
 | `OAuthPkceHelperTest` | 14 | PKCE code-verifier / challenge / URL generation |
-| `AuthViewModelTest` | 8 | ViewModel state machine (Idle / Loading / Success / Error) |
+| `AuthViewModelTest` | 13 | ViewModel state machine (Idle / AwaitingRedirect / Loading / Success / Error); accountId derivation |
+| `FeatureEnablementViewModelTest` | 17 | Toggle, enableAll, saveAndContinue (new + existing account), skipAndContinue |
 | `AccountRepositoryTest` | 17 | Multi-account add + debug logging; `observeAllAccounts`; `setActiveAccount` |
 | `AiSummarizerTest` | 17 | On-device extractive summarisation |
 | `DriveModelsTest` | 13 | `DriveCapabilities` / `DriveFileResponse` data classes |

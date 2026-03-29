@@ -27,6 +27,39 @@ All three states are covered by `AuthViewModelTest` in
 
 ---
 
+## Feature Enablement (`feature/auth` — post-OAuth step)
+
+`FeatureEnablementScreen` is shown **immediately after a new account authenticates**.  It lets
+the user opt in to any combination of the four [AccountFeature]s for that account.  The
+selection is persisted on `AccountEntity.enabledFeatures` (Room column, version 2 migration).
+
+| Screenshot | State | What it shows |
+|---|---|---|
+| ![Feature enablement – Idle](feature_enablement_idle.png) | All features OFF | "Enable features" heading, account email in primary colour, all 4 Switch rows **OFF** (grey), **Enable all features** outlined button, **Continue** filled button, **Skip for now** text button |
+| ![Feature enablement – Partial](feature_enablement_partial.png) | Drive + Tasks ON | Google Drive and Google Tasks Switches are **ON** (purple), Calendar and AI Summarizer remain OFF; their icons are tinted primary / onSurfaceVariant accordingly |
+| ![Feature enablement – All enabled](feature_enablement_all_enabled.png) | All 4 features ON | All Switches **ON**, **Enable all features** button is disabled (greyed out outline) since every feature is already selected |
+
+### UI states driven by `FeatureEnablementViewModel`
+
+| ViewModel method | Effect on UI |
+|---|---|
+| `toggleFeature(f)` | Flips the Switch for feature `f`; icon tint follows the new state |
+| `enableAllFeatures()` | Sets all 4 switches ON; **Enable all features** button becomes disabled |
+| `saveAndContinue(onDone)` | Shows spinner on **Continue** button while saving; navigates away on success |
+| `skipAndContinue(onDone)` | Clears all toggles; saves an empty `enabledFeatures` list; navigates away |
+
+Covered by `FeatureEnablementViewModelTest` in
+`feature/auth/src/test/…/ui/FeatureEnablementViewModelTest.kt` (17 tests):
+- Initial state — no features enabled, `isSaving = false`
+- `toggleFeature` enables / disables individual features independently
+- `enableAllFeatures` sets every `AccountFeature` at once; is idempotent
+- `saveAndContinue` creates a new `AccountEntity` when none exists, containing the selected feature names
+- `saveAndContinue` updates an existing `AccountEntity` in place
+- `skipAndContinue` saves an account with an **empty** `enabledFeatures` list
+- `onDone` callback is invoked exactly once per save call
+
+---
+
 ## Drive Feature (`feature/drive`)
 
 The `DriveScreen` composable uses a **ListDetailPaneScaffold** (adaptive layout):
@@ -91,7 +124,8 @@ Covered by `DriveRepositoryTest` and `DriveViewModelTest`:
 | Unit test class | Source | Screens validated |
 |---|---|---|
 | `OAuthPkceHelperTest` (14 tests) | PKCE crypto layer | Auth flow security |
-| `AuthViewModelTest` (8 tests) | `AuthViewModel` state machine | Auth – Idle / Error / Success |
+| `AuthViewModelTest` (13 tests) | `AuthViewModel` state machine | Auth – Idle / Error / Success / AwaitingRedirect |
+| `FeatureEnablementViewModelTest` (17 tests) | `FeatureEnablementViewModel` | Feature Enablement – Idle / Partial / All-enabled |
 | `AccountRepositoryTest` (17 tests) | `AccountRepository` multi-account + logging | Multi-account list |
 | `AiSummarizerTest` (17 tests) | `AiSummarizer` | "AI Summary" bullets in Drive Detail |
 | `DriveModelsTest` (13 tests) | `DriveFileResponse` / `DriveCapabilities` | Capability badges in Drive Detail |
