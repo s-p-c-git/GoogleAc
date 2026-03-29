@@ -94,7 +94,9 @@ Covered by `AccountRepositoryTest` in
 
 | Screenshot | What it shows |
 |---|---|
-| ![Drive files per account](drive_files_per_account.png) | Unified file explorer with filter chips (All / ac1 personal / ac2 work); ac1 files shown in purple tonal chips, ac2 files in blue tonal chips — each row is scoped to its owning account |
+| ![Drive files per account](drive_files_per_account.png) | Unified file explorer: search bar at top, filter chips row (All ✓ / ac1 personal / ac2 work), then a unified file list where **every row carries an `ac` chip tag** — purple `[ac1]` for personal@gmail.com files, blue `[ac2]` for work@corp.com files.  `report_q1.pdf`, `budget_2024.xlsx`, `presentation.pptx` and `Shared/` folder show `[ac1]`; `Projects/`, `meeting_notes.doc`, `invoice_jan.pdf` and `Q2_forecast.csv` show `[ac2]`. |
+
+The per-row `ac` chip is the same visual tag used throughout the Drive UI — it immediately tells the user which account owns each file without requiring a filter selection first.
 
 Covered by `DriveRepositoryTest` in
 `feature/drive/src/test/…/data/repository/DriveRepositoryTest.kt`:
@@ -108,7 +110,9 @@ Covered by `DriveRepositoryTest` in
 
 | Screenshot | What it shows |
 |---|---|
-| ![Move file](move_file.png) | Move-file confirmation dialog: source file card (`report_q1.pdf`, `file_001`) with FROM ac1 → TO ac2 transfer arrow; amber "What will happen" panel explaining copy + unsynced flag + delete-from-source; repository log trace showing both log lines; green "moveFile returned true" success badge; Cancel / **Move File** action buttons |
+| ![Move file](move_file.png) | Search-first move flow: user typed "report" in the search bar; the result row shows `report_q1.pdf` **highlighted and tagged `[ac1]`** (purple) with the "Move to another account → ac2" action strip visible.  Below a "After move to ac2" divider, the same file is shown tagged **`[ac2]`** (blue) with a green **✓ Moved** badge — clearly demonstrating the account tag change from `ac1` to `ac2`.  A compact dark log strip confirms both repository operations: INSERT copy (ac2, isSynced=false, MOVE_FROM:ac1) then DELETE source (ac1); capped by the green "moveFile returned true" success badge. |
+
+The `ac` chip is present on **both** the before-row (`[ac1]`) and after-row (`[ac2]`) so that the visual difference between pre-move and post-move state is unambiguous.
 
 Covered by `DriveRepositoryTest` and `DriveViewModelTest`:
 - `moveFile` returns `true` when the source file exists

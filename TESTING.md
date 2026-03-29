@@ -27,8 +27,8 @@ Each mock faithfully mirrors the Kotlin source code in the corresponding feature
 | `feature_enablement_idle.png`, `feature_enablement_partial.png`, `feature_enablement_all_enabled.png` | `feature/auth/…/ui/FeatureEnablementScreen.kt` — 3 `FeatureEnablementViewModel` states |
 | `drive_list.png`, `drive_detail.png`, `drive_search.png` | `feature/drive/…/ui/DriveScreen.kt` — `ListDetailPaneScaffold` |
 | `multi_account_list.png` | `AccountRepository.addAccount` log flow + `AccountDao` |
-| `drive_files_per_account.png` | `DriveRepository.observeRootFiles` per-account partitioning |
-| `move_file.png` | `DriveRepository.moveFile` insert-then-delete semantics |
+| `drive_files_per_account.png` | `DriveRepository.observeRootFiles` per-account partitioning — search bar + per-row `[ac1]`/`[ac2]` chip tags |
+| `move_file.png` | `DriveRepository.moveFile` insert-then-delete semantics — search-first flow showing `[ac1]` before-move and `[ac2]` after-move chip tags |
 
 ### What they do NOT prove
 
@@ -141,8 +141,8 @@ Or open the project in **Android Studio**, select your device from the toolbar, 
 | **Feature enablement** | `FeatureEnablementScreen` appears — toggle the Google services you want (Drive, Calendar, Tasks, AI Summarizer) per account, then tap **Continue** (or **Skip for now**) |
 | Drive screen | `DriveScreen` loads — root files for the signed-in account appear |
 | Add a second account | Repeat the sign-in flow; each account gets its own feature enablement step and its own `accountId` in Room |
-| File list | Both accounts' files appear with colour-coded chips (`ac1` purple, `ac2` blue) |
-| Move a file | Long-press a file → "Move to account" → select the destination account |
+| File list | Both accounts' files appear with **per-row `[ac1]`/`[ac2]` colour-coded chips** (purple = ac1, blue = ac2) — the same chip is visible on every file row, making account ownership immediately clear |
+| Move a file | Tap the Search icon → type the filename → the result row shows the file tagged `[ac1]`; tap "Move to another account → ac2" → the file reappears tagged `[ac2]` with a green **✓ Moved** badge |
 
 ---
 
