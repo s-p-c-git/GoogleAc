@@ -63,4 +63,8 @@ interface DriveFileDao {
     /** Get all unsynced files for WorkManager sync */
     @Query("SELECT * FROM drive_files WHERE is_synced = 0 AND account_id = :accountId")
     suspend fun getUnsyncedFiles(accountId: String): List<DriveFileEntity>
+
+    /** Get a single file by its ID and account */
+    @Query("SELECT * FROM drive_files WHERE file_id = :fileId AND account_id = :accountId LIMIT 1")
+    suspend fun getFile(fileId: String, accountId: String): DriveFileEntity?
 }

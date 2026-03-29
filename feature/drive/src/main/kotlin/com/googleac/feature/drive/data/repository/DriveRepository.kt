@@ -1,5 +1,6 @@
 package com.googleac.feature.drive.data.repository
 
+import android.util.Log
 import com.googleac.core.data.db.dao.DriveFileDao
 import com.googleac.core.data.db.entity.DriveFileEntity
 import com.googleac.feature.drive.data.api.DriveApiService
@@ -15,6 +16,9 @@ class DriveRepository @Inject constructor(
     private val driveFileDao: DriveFileDao,
     private val moshi: Moshi
 ) {
+    companion object {
+        private const val TAG = "DriveRepository"
+    }
     /** Observe files in a folder - DB is the canonical truth (offline-first) */
     fun observeFilesInFolder(accountId: String, parentId: String): Flow<List<DriveFileEntity>> =
         driveFileDao.observeFilesInFolder(accountId, parentId)
@@ -89,6 +93,38 @@ class DriveRepository @Inject constructor(
         } else {
             driveFileDao.queueOperation(fileId, accountId, "DELETE")
         }
+    }
+
+    /**
+     * Move a file from one account to another.
+     *
+     * Copies the file entity under [toAccountId] (resetting the parent to root),
+     * then deletes the entry under [fromAccountId].  Both steps are performed
+     * against the local DB so the operation works offline.
+     *
+     * @return true if the file was found and moved, false if the source file was not found.
+     */
+    suspend fun moveFile(
+        fileId: String,
+        fromAccountId: String,
+        toAccountId: String
+    ): Boolean {
+        Log.d(TAG, "Moving file $fileId from account $fromAccountId to $toAccountId")
+        val source = driveFileDao.getFile(fileId, fromAccountId)
+        if (source == null) {
+            Log.w(TAG, "moveFile: file not found in account $fromAccountId")
+            return false
+        }
+        val moved = source.copy(
+            accountId = toAccountId,
+            parentId = null,
+            isSynced = false,
+            pendingOperation = "MOVE_FROM:$fromAccountId"
+        )
+        driveFileDao.insertFile(moved)
+        driveFileDao.deleteFile(fileId, fromAccountId)
+        Log.d(TAG, "File moved successfully to account $toAccountId")
+        return true
     }
 
     private fun DriveFileResponse.toEntity(accountId: String): DriveFileEntity {

@@ -17,6 +17,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -192,5 +193,38 @@ class DriveViewModelTest {
         assertEquals(2, result.size)
         assertEquals("notes.pdf", result[0].name)
         assertEquals("contract.docx", result[1].name)
+    }
+
+    // ── moveFile ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `moveFile delegates to repository with correct parameters`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
+
+        viewModel.moveFile("file_001", "ac1", "ac2")
+        advanceUntilIdle()
+
+        verify(repository).moveFile("file_001", "ac1", "ac2")
+    }
+
+    @Test
+    fun `moveFile from ac1 to ac2 calls repository once`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
+
+        viewModel.moveFile("file_001", "ac1", "ac2")
+        advanceUntilIdle()
+
+        verify(repository, times(1)).moveFile("file_001", "ac1", "ac2")
+    }
+
+    @Test
+    fun `moveFile passes fileId unchanged to repository`() = runTest(testDispatcher) {
+        val fileId = "unique_file_abc_123"
+        backgroundScope.launch { viewModel.uiState.collect { } }
+
+        viewModel.moveFile(fileId, "ac1", "ac2")
+        advanceUntilIdle()
+
+        verify(repository).moveFile(fileId, "ac1", "ac2")
     }
 }

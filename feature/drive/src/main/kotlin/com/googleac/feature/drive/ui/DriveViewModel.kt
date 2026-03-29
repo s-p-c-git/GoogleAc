@@ -63,4 +63,10 @@ class DriveViewModel @Inject constructor(
             repository.deleteFile(accountId, fileId, null)
         }
     }
+
+    fun moveFile(fileId: String, fromAccountId: String, toAccountId: String) {
+        viewModelScope.launch {
+            repository.moveFile(fileId, fromAccountId, toAccountId)
+        }
+    }
 }
