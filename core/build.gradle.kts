@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+    implementation(libs.moshi.kotlin)
     implementation(libs.encrypted.shared.preferences)
     implementation(libs.datastore.preferences)
     implementation(libs.coroutines.android)
