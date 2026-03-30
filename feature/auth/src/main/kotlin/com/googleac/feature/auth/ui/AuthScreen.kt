@@ -12,14 +12,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -57,18 +62,21 @@ fun AuthScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "GoogleAc",
+            text = "gShare",
             style = MaterialTheme.typography.displayMedium
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Multi-Account Productivity Hub",
+            text = "Multi-Account Google Drive Manager",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(48.dp))
 
         when (val state = uiState) {
+            is AuthUiState.Setup -> {
+                SetupClientIdSection(onSave = { viewModel.saveClientId(it) })
+            }
             is AuthUiState.Idle -> {
                 Button(
                     onClick = { viewModel.startAuth() },
@@ -106,5 +114,48 @@ fun AuthScreen(
                 Text("Signed in as ${state.email}")
             }
         }
+    }
+}
+
+/**
+ * One-time setup section that prompts the user to enter their Google OAuth
+ * client ID when the app was built without one (e.g., a pre-built CI APK).
+ *
+ * The entered value is persisted via [AuthViewModel.saveClientId] so the user
+ * only needs to do this once.
+ */
+@Composable
+private fun SetupClientIdSection(onSave: (String) -> Unit) {
+    var clientIdInput by remember { mutableStateOf("") }
+
+    Text(
+        text = "One-time setup required",
+        style = MaterialTheme.typography.titleMedium
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = "This build was not packaged with a Google OAuth client ID.\n" +
+               "Enter your Web/Android OAuth client ID below to enable sign-in.\n\n" +
+               "Create one at:\nconsole.cloud.google.com → APIs & Services → Credentials",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    OutlinedTextField(
+        value = clientIdInput,
+        onValueChange = { clientIdInput = it },
+        label = { Text("OAuth Client ID") },
+        placeholder = { Text("1234567890.apps.googleusercontent.com") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Button(
+        onClick = { onSave(clientIdInput.trim()) },
+        enabled = clientIdInput.isNotBlank(),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Save & Continue")
     }
 }

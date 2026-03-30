@@ -518,7 +518,7 @@ app.get('/api/config', (_req, res) => {
 // ---------------------------------------------------------------------------
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`GoogleAc webapp listening on http://localhost:${PORT}`);
+    console.log(`gShare webapp listening on http://localhost:${PORT}`);
     if (!CLIENT_ID || !CLIENT_SECRET) {
       console.warn(
         '⚠  OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET not set — copy .env.example to .env and fill in your credentials.'

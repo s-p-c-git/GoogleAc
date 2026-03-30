@@ -1,6 +1,6 @@
-# GoogleAc — Web App
+# gShare — Web App
 
-A browser-based companion to the **GoogleAc** Android app.  
+A browser-based companion to the **gShare** Android app.  
 It lets you sign in with one or more Google accounts, browse Drive files, search, filter, and manage files (rename / delete / move between accounts) — all from a standard web browser on Ubuntu (or any machine with Node.js ≥ 18).
 
 ---
@@ -23,7 +23,7 @@ The webapp uses a **Web Application** OAuth 2.0 client (not the Android one).
 2. Create a project (or reuse the one you created for the Android app).
 3. Enable the **Google Drive API** for the project.
 4. Click **"Create credentials" → OAuth client ID → Web application**.
-   - **Name:** `GoogleAc Web`
+   - **Name:** `gShare Web`
    - **Authorized redirect URIs:** add `http://localhost:3000/auth/callback`
 5. Note the **Client ID** and **Client Secret** that Google generates.
 

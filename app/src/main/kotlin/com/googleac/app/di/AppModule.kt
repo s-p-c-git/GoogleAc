@@ -1,32 +1,37 @@
 package com.googleac.app.di
 
+import android.content.Context
 import com.googleac.app.BuildConfig
+import com.googleac.app.data.SharedPrefsClientIdRepository
+import com.googleac.feature.auth.data.ClientIdRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Named
+import javax.inject.Singleton
 
 /**
  * App-level Hilt module.
  *
- * Exposes the OAuth client ID (read from `local.properties` at build time) as a
- * named string so feature modules can inject it without a direct dependency on
- * the app module's [BuildConfig].
+ * Provides a [ClientIdRepository] that returns the Google OAuth 2.0 client ID.
+ * Two sources are consulted in order:
+ *  1. A value the user entered at runtime (stored in SharedPreferences).
+ *  2. The build-time value from `local.properties` (empty for CI/pre-built APKs).
+ *
+ * This allows the pre-built CI APK to be installed and configured by any
+ * developer without needing to rebuild the app.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    /**
-     * The Google OAuth 2.0 client ID for this installation.
-     *
-     * Set `oauth.client_id=<your-id>.apps.googleusercontent.com` in
-     * `local.properties` before building.  An empty string is provided as a
-     * safe default so the app compiles even without the file, but sign-in will
-     * fail until a real value is supplied.
-     */
     @Provides
-    @Named("oauthClientId")
-    fun provideOAuthClientId(): String = BuildConfig.OAUTH_CLIENT_ID
+    @Singleton
+    fun provideClientIdRepository(
+        @ApplicationContext context: Context
+    ): ClientIdRepository = SharedPrefsClientIdRepository(
+        context = context,
+        buildTimeClientId = BuildConfig.OAUTH_CLIENT_ID
+    )
 }

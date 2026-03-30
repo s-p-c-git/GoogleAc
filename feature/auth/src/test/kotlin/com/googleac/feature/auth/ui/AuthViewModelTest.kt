@@ -1,5 +1,6 @@
 package com.googleac.feature.auth.ui
 
+import com.googleac.feature.auth.data.ClientIdRepository
 import com.googleac.feature.auth.data.OAuthCallbackRouter
 import com.googleac.feature.auth.data.OAuthPkceHelper
 import com.googleac.feature.auth.data.OAuthTokenExchanger
@@ -19,6 +20,12 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
+/** In-memory [ClientIdRepository] for use in unit tests. */
+private class FakeClientIdRepository(private var storedId: String = "") : ClientIdRepository {
+    override fun get(): String = storedId
+    override fun save(clientId: String) { storedId = clientId }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
 
@@ -33,7 +40,7 @@ class AuthViewModelTest {
         tokenExchanger = mock()
         callbackRouter = OAuthCallbackRouter()
         viewModel = AuthViewModel(
-            clientId = "test-client-id",
+            clientIdRepository = FakeClientIdRepository("test-client-id"),
             tokenExchanger = tokenExchanger,
             callbackRouter = callbackRouter
         )
@@ -47,8 +54,46 @@ class AuthViewModelTest {
     // ── Initial state ─────────────────────────────────────────────────────────
 
     @Test
-    fun `initial state is Idle`() {
+    fun `initial state is Idle when client id is configured`() {
         assertEquals(AuthUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `initial state is Setup when client id is blank`() {
+        val vm = AuthViewModel(
+            clientIdRepository = FakeClientIdRepository(""),
+            tokenExchanger = tokenExchanger,
+            callbackRouter = OAuthCallbackRouter()
+        )
+        assertEquals(AuthUiState.Setup, vm.uiState.value)
+    }
+
+    // ── saveClientId ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `saveClientId transitions from Setup to Idle`() {
+        val vm = AuthViewModel(
+            clientIdRepository = FakeClientIdRepository(""),
+            tokenExchanger = tokenExchanger,
+            callbackRouter = OAuthCallbackRouter()
+        )
+        assertEquals(AuthUiState.Setup, vm.uiState.value)
+        vm.saveClientId("new-client-id")
+        assertEquals(AuthUiState.Idle, vm.uiState.value)
+    }
+
+    @Test
+    fun `startAuth stays in Setup when client id is blank`() {
+        // A ViewModel with a blank client ID starts in Setup and stays there
+        // even when startAuth() is called — the guard catches it before building the URL.
+        val vm = AuthViewModel(
+            clientIdRepository = FakeClientIdRepository(""),
+            tokenExchanger = tokenExchanger,
+            callbackRouter = OAuthCallbackRouter()
+        )
+        assertEquals(AuthUiState.Setup, vm.uiState.value)
+        vm.startAuth()
+        assertEquals(AuthUiState.Setup, vm.uiState.value)
     }
 
     // ── startAuth ─────────────────────────────────────────────────────────────
