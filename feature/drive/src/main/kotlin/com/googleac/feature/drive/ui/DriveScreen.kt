@@ -41,6 +41,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.googleac.core.data.db.entity.AccountEntity
 import com.googleac.core.data.db.entity.DriveFileEntity
+import kotlinx.coroutines.launch
 
 /** MIME type options shown in the filter chip row. */
 private data class MimeFilter(val label: String, val mimeType: String?)
@@ -69,6 +71,7 @@ fun DriveScreen(
     val uiState by viewModel.uiState.collectAsState()
     val accounts by viewModel.accounts.collectAsState()
     val navigator = rememberListDetailPaneScaffoldNavigator<DriveFileEntity>()
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -136,14 +139,16 @@ fun DriveScreen(
                     FileListPane(
                         files = uiState.files,
                         onFileClick = { file ->
-                            navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, file)
+                            scope.launch {
+                                navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, file)
+                            }
                         }
                     )
                 }
             },
             detailPane = {
                 AnimatedPane {
-                    val selectedFile = navigator.currentDestination?.content
+                    val selectedFile = navigator.currentDestination?.contentKey
                     if (selectedFile != null) {
                         FileDetailPane(
                             file = selectedFile,
