@@ -21,7 +21,9 @@ data class DriveUiState(
     val files: List<DriveFileEntity> = emptyList(),
     val isSearching: Boolean = false,
     val searchQuery: String = "",
-    val filterMimeType: String? = null
+    val filterMimeType: String? = null,
+    /** Number of distinct accounts whose files are shown in the current list. */
+    val accountCount: Int = 0
 )
 
 @HiltViewModel
@@ -46,18 +48,27 @@ class DriveViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val uiState: StateFlow<DriveUiState> = combine(
-        _files, _isSearching, _searchQuery, _filterMimeType
-    ) { files, searching, query, filterMimeType ->
+        _files, _isSearching, _searchQuery, _filterMimeType, accounts
+    ) { args ->
+        val files = args[0] as List<*>
+        val searching = args[1] as Boolean
+        val query = args[2] as String
+        val filterMimeType = args[3] as? String
+        @Suppress("UNCHECKED_CAST")
+        val allAccounts = args[4] as List<AccountEntity>
+        @Suppress("UNCHECKED_CAST")
+        val fileList = files as List<DriveFileEntity>
         val filteredFiles = if (filterMimeType != null) {
-            files.filter { it.mimeType == filterMimeType }
+            fileList.filter { it.mimeType == filterMimeType }
         } else {
-            files
+            fileList
         }
         DriveUiState(
             files = filteredFiles,
             isSearching = searching,
             searchQuery = query,
-            filterMimeType = filterMimeType
+            filterMimeType = filterMimeType,
+            accountCount = allAccounts.size
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DriveUiState())
 

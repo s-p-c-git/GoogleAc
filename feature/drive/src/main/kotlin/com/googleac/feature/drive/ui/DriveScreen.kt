@@ -44,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.googleac.core.data.db.entity.AccountEntity
@@ -73,7 +74,21 @@ fun DriveScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("My Files") },
+                    title = {
+                        Column {
+                            Text("All Files")
+                            val subtitle = when (uiState.accountCount) {
+                                0 -> "No accounts connected"
+                                1 -> "Files from 1 account"
+                                else -> "Files from ${uiState.accountCount} accounts"
+                            }
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
                     actions = {
                         IconButton(onClick = { viewModel.toggleSearch() }) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
@@ -162,9 +177,24 @@ private fun FileListPane(
     files: List<DriveFileEntity>,
     onFileClick: (DriveFileEntity) -> Unit
 ) {
-    LazyColumn {
-        items(files, key = { "${it.accountId}/${it.fileId}" }) { file ->
-            FileListItem(file = file, onClick = { onFileClick(file) })
+    if (files.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No files found.\nTap the search icon to filter across all accounts.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(32.dp)
+            )
+        }
+    } else {
+        LazyColumn {
+            items(files, key = { "${it.accountId}/${it.fileId}" }) { file ->
+                FileListItem(file = file, onClick = { onFileClick(file) })
+            }
         }
     }
 }

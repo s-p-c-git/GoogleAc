@@ -95,6 +95,31 @@ class DriveViewModelTest {
         assertNull(viewModel.uiState.value.filterMimeType)
     }
 
+    @Test
+    fun `initial state has zero accountCount when dao returns empty list`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        advanceUntilIdle()
+        assertEquals(0, viewModel.uiState.value.accountCount)
+    }
+
+    @Test
+    fun `accountCount reflects number of accounts from dao`() = runTest(testDispatcher) {
+        val twoAccounts = listOf(
+            com.googleac.core.data.db.entity.AccountEntity(
+                accountId = "ac1", email = "alice@example.com", displayName = "Alice"
+            ),
+            com.googleac.core.data.db.entity.AccountEntity(
+                accountId = "ac2", email = "bob@example.com", displayName = "Bob"
+            )
+        )
+        whenever(accountDao.observeAllAccounts()).thenReturn(flowOf(twoAccounts))
+        viewModel = DriveViewModel(repository, accountDao)
+
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.accountCount)
+    }
+
     // ── toggleSearch ──────────────────────────────────────────────────────────
 
     @Test
