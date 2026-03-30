@@ -2,6 +2,8 @@ package com.googleac.feature.drive.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.googleac.core.data.db.dao.AccountDao
+import com.googleac.core.data.db.entity.AccountEntity
 import com.googleac.core.data.db.entity.DriveFileEntity
 import com.googleac.feature.drive.data.repository.DriveRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,16 +20,19 @@ import javax.inject.Inject
 data class DriveUiState(
     val files: List<DriveFileEntity> = emptyList(),
     val isSearching: Boolean = false,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val filterMimeType: String? = null
 )
 
 @HiltViewModel
 class DriveViewModel @Inject constructor(
-    private val repository: DriveRepository
+    private val repository: DriveRepository,
+    private val accountDao: AccountDao
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     private val _isSearching = MutableStateFlow(false)
+    private val _filterMimeType = MutableStateFlow<String?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val _files = _searchQuery
@@ -36,11 +41,23 @@ class DriveViewModel @Inject constructor(
             else repository.searchAllFiles(query)
         }
 
-    val uiState: StateFlow<DriveUiState> = combine(_files, _isSearching, _searchQuery) { files, searching, query ->
+    /** Observable list of all registered accounts, used by the Move-to-account picker. */
+    val accounts: StateFlow<List<AccountEntity>> = accountDao.observeAllAccounts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val uiState: StateFlow<DriveUiState> = combine(
+        _files, _isSearching, _searchQuery, _filterMimeType
+    ) { files, searching, query, filterMimeType ->
+        val filteredFiles = if (filterMimeType != null) {
+            files.filter { it.mimeType == filterMimeType }
+        } else {
+            files
+        }
         DriveUiState(
-            files = files,
+            files = filteredFiles,
             isSearching = searching,
-            searchQuery = query
+            searchQuery = query,
+            filterMimeType = filterMimeType
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DriveUiState())
 
@@ -50,6 +67,11 @@ class DriveViewModel @Inject constructor(
 
     fun search(query: String) {
         _searchQuery.value = query
+    }
+
+    /** Filter the file list to files matching [mimeType]; pass null to clear the filter. */
+    fun filterByMimeType(mimeType: String?) {
+        _filterMimeType.value = mimeType
     }
 
     fun renameFile(fileId: String, accountId: String, newName: String) {

@@ -1,5 +1,6 @@
 package com.googleac.feature.drive.ui
 
+import com.googleac.core.data.db.dao.AccountDao
 import com.googleac.core.data.db.entity.DriveFileEntity
 import com.googleac.feature.drive.data.repository.DriveRepository
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +13,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -33,6 +35,7 @@ class DriveViewModelTest {
      */
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: DriveRepository
+    private lateinit var accountDao: AccountDao
     private lateinit var viewModel: DriveViewModel
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -50,9 +53,11 @@ class DriveViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         repository = mock()
+        accountDao = mock()
         whenever(repository.observeAllFiles()).thenReturn(flowOf(emptyList()))
         whenever(repository.searchAllFiles(any())).thenReturn(flowOf(emptyList()))
-        viewModel = DriveViewModel(repository)
+        whenever(accountDao.observeAllAccounts()).thenReturn(flowOf(emptyList()))
+        viewModel = DriveViewModel(repository, accountDao)
     }
 
     @After
@@ -81,6 +86,13 @@ class DriveViewModelTest {
         backgroundScope.launch { viewModel.uiState.collect { } }
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.searchQuery.isEmpty())
+    }
+
+    @Test
+    fun `initial state has null filterMimeType`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.filterMimeType)
     }
 
     // ── toggleSearch ──────────────────────────────────────────────────────────
@@ -139,7 +151,7 @@ class DriveViewModelTest {
             makeFile("f2", "acc2", "invoice.pdf")
         )
         whenever(repository.observeAllFiles()).thenReturn(flowOf(allFiles))
-        viewModel = DriveViewModel(repository)
+        viewModel = DriveViewModel(repository, accountDao)
 
         backgroundScope.launch { viewModel.uiState.collect { } }
         advanceUntilIdle()
@@ -166,7 +178,7 @@ class DriveViewModelTest {
         val allFiles = listOf(makeFile("f1", "acc1", "all.pdf"))
         whenever(repository.observeAllFiles()).thenReturn(flowOf(allFiles))
         whenever(repository.searchAllFiles("budget")).thenReturn(flowOf(emptyList()))
-        viewModel = DriveViewModel(repository)
+        viewModel = DriveViewModel(repository, accountDao)
 
         backgroundScope.launch { viewModel.uiState.collect { } }
         viewModel.search("budget")
@@ -185,7 +197,7 @@ class DriveViewModelTest {
             makeFile("id2", "account_corporate", "contract.docx", mimeType = "application/msword")
         )
         whenever(repository.observeAllFiles()).thenReturn(flowOf(files))
-        viewModel = DriveViewModel(repository)
+        viewModel = DriveViewModel(repository, accountDao)
 
         backgroundScope.launch { viewModel.uiState.collect { } }
         advanceUntilIdle()
@@ -193,6 +205,80 @@ class DriveViewModelTest {
         assertEquals(2, result.size)
         assertEquals("notes.pdf", result[0].name)
         assertEquals("contract.docx", result[1].name)
+    }
+
+    // ── filterByMimeType ──────────────────────────────────────────────────────
+
+    @Test
+    fun `filterByMimeType sets filterMimeType in state`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        viewModel.filterByMimeType("application/pdf")
+        advanceUntilIdle()
+        assertEquals("application/pdf", viewModel.uiState.value.filterMimeType)
+    }
+
+    @Test
+    fun `filterByMimeType null clears the filter`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        viewModel.filterByMimeType("application/pdf")
+        advanceUntilIdle()
+        viewModel.filterByMimeType(null)
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.filterMimeType)
+    }
+
+    @Test
+    fun `filterByMimeType folder shows only folders`() = runTest(testDispatcher) {
+        val folderMime = "application/vnd.google-apps.folder"
+        val allFiles = listOf(
+            makeFile("f1", "acc1", "folder_a", mimeType = folderMime),
+            makeFile("f2", "acc1", "report.pdf", mimeType = "application/pdf"),
+            makeFile("f3", "acc2", "folder_b", mimeType = folderMime)
+        )
+        whenever(repository.observeAllFiles()).thenReturn(flowOf(allFiles))
+        viewModel = DriveViewModel(repository, accountDao)
+
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        viewModel.filterByMimeType(folderMime)
+        advanceUntilIdle()
+
+        val result = viewModel.uiState.value.files
+        assertEquals(2, result.size)
+        assertTrue(result.all { it.mimeType == folderMime })
+    }
+
+    @Test
+    fun `filterByMimeType null shows all files`() = runTest(testDispatcher) {
+        val allFiles = listOf(
+            makeFile("f1", "acc1", "folder_a", mimeType = "application/vnd.google-apps.folder"),
+            makeFile("f2", "acc1", "report.pdf", mimeType = "application/pdf")
+        )
+        whenever(repository.observeAllFiles()).thenReturn(flowOf(allFiles))
+        viewModel = DriveViewModel(repository, accountDao)
+
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        viewModel.filterByMimeType("application/pdf")
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.files.size)
+
+        viewModel.filterByMimeType(null)
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.files.size)
+    }
+
+    @Test
+    fun `filterByMimeType with no matching files returns empty list`() = runTest(testDispatcher) {
+        val allFiles = listOf(
+            makeFile("f1", "acc1", "report.pdf", mimeType = "application/pdf")
+        )
+        whenever(repository.observeAllFiles()).thenReturn(flowOf(allFiles))
+        viewModel = DriveViewModel(repository, accountDao)
+
+        backgroundScope.launch { viewModel.uiState.collect { } }
+        viewModel.filterByMimeType("application/vnd.google-apps.spreadsheet")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.files.isEmpty())
     }
 
     // ── moveFile ──────────────────────────────────────────────────────────────

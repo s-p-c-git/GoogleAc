@@ -1,6 +1,8 @@
 package com.googleac.feature.drive.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileMove
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -42,7 +46,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.googleac.core.data.db.entity.AccountEntity
 import com.googleac.core.data.db.entity.DriveFileEntity
+
+/** MIME type options shown in the filter chip row. */
+private data class MimeFilter(val label: String, val mimeType: String?)
+
+private val MIME_FILTERS = listOf(
+    MimeFilter("All", null),
+    MimeFilter("Folders", "application/vnd.google-apps.folder"),
+    MimeFilter("Docs", "application/vnd.google-apps.document"),
+    MimeFilter("Sheets", "application/vnd.google-apps.spreadsheet"),
+    MimeFilter("PDFs", "application/pdf")
+)
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -50,18 +66,48 @@ fun DriveScreen(
     viewModel: DriveViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val accounts by viewModel.accounts.collectAsState()
     val navigator = rememberListDetailPaneScaffoldNavigator<DriveFileEntity>()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("My Files") },
-                actions = {
-                    IconButton(onClick = { viewModel.toggleSearch() }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
+            Column {
+                TopAppBar(
+                    title = { Text("My Files") },
+                    actions = {
+                        IconButton(onClick = { viewModel.toggleSearch() }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                    }
+                )
+                // Search bar — visible only when the user has activated search
+                AnimatedVisibility(visible = uiState.isSearching) {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = { viewModel.search(it) },
+                        placeholder = { Text("Search across all accounts…") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+                // MIME-type filter chips
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    MIME_FILTERS.forEach { filter ->
+                        FilterChip(
+                            selected = uiState.filterMimeType == filter.mimeType,
+                            onClick = { viewModel.filterByMimeType(filter.mimeType) },
+                            label = { Text(filter.label) },
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
                     }
                 }
-            )
+            }
         }
     ) { paddingValues ->
         ListDetailPaneScaffold(
@@ -86,8 +132,12 @@ fun DriveScreen(
                     if (selectedFile != null) {
                         FileDetailPane(
                             file = selectedFile,
+                            accounts = accounts,
                             onRename = { viewModel.renameFile(selectedFile.fileId, selectedFile.accountId, it) },
-                            onDelete = { viewModel.deleteFile(selectedFile.fileId, selectedFile.accountId) }
+                            onDelete = { viewModel.deleteFile(selectedFile.fileId, selectedFile.accountId) },
+                            onMove = { toAccountId ->
+                                viewModel.moveFile(selectedFile.fileId, selectedFile.accountId, toAccountId)
+                            }
                         )
                     } else {
                         Box(
@@ -125,13 +175,23 @@ private fun FileListItem(
     onClick: () -> Unit
 ) {
     val isFolder = file.mimeType == "application/vnd.google-apps.folder"
+    // Derive a short human-readable account badge (e.g. first 6 chars of accountId)
+    val accountBadge = file.accountId.take(6)
     ListItem(
         headlineContent = { Text(file.name) },
         supportingContent = {
-            Text(
-                text = file.modifiedTime ?: file.mimeType,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "[$accountBadge]",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 6.dp)
+                )
+                Text(
+                    text = file.modifiedTime ?: file.mimeType,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         },
         leadingContent = {
             Icon(
@@ -148,8 +208,10 @@ private fun FileListItem(
 @Composable
 private fun FileDetailPane(
     file: DriveFileEntity,
+    accounts: List<AccountEntity>,
     onRename: (String) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onMove: (String) -> Unit
 ) {
     val capabilities = file.capabilitiesJson
     // Parse capabilities to determine allowed actions
@@ -158,6 +220,7 @@ private fun FileDetailPane(
     val canMove = capabilities?.contains("\"canMoveItemWithinDrive\":true") == true
 
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showMoveDialog by remember { mutableStateOf(false) }
     var renameInput by remember(file.fileId) { mutableStateOf(file.name) }
 
     if (showRenameDialog) {
@@ -184,6 +247,38 @@ private fun FileDetailPane(
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Account picker for cross-account file move
+    if (showMoveDialog) {
+        val targetAccounts = accounts.filter { it.accountId != file.accountId }
+        AlertDialog(
+            onDismissRequest = { showMoveDialog = false },
+            title = { Text("Move to account") },
+            text = {
+                if (targetAccounts.isEmpty()) {
+                    Text("No other accounts available. Add another account first.")
+                } else {
+                    Column {
+                        targetAccounts.forEach { account ->
+                            TextButton(
+                                onClick = {
+                                    onMove(account.accountId)
+                                    showMoveDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(account.displayName.ifBlank { account.email })
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showMoveDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -221,8 +316,8 @@ private fun FileDetailPane(
             IconButton(onClick = { onDelete() }, enabled = canDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete")
             }
-            IconButton(onClick = {}, enabled = canMove) {
-                Icon(Icons.Default.DriveFileMove, contentDescription = "Move")
+            IconButton(onClick = { showMoveDialog = true }, enabled = canMove) {
+                Icon(Icons.Default.DriveFileMove, contentDescription = "Move to account")
             }
         }
         file.semanticIndexText?.let {
