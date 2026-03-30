@@ -1,0 +1,64 @@
+name: Build Debug APK
+
+# Runs on every push / PR to main, and can be triggered manually via
+# the "Run workflow" button on the Actions tab.
+on:
+  push:
+    branches:
+      - main
+      - "copilot/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # ── 1. Source ────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Java ──────────────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      # ── 3. Gradle ────────────────────────────────────────────────────────────
+      # Installs Gradle 8.13 (compatible with AGP 8.10.x) and sets up caching.
+      # Uses the version directly so the wrapper JAR is not needed in the repo.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      # ── 4. local.properties ──────────────────────────────────────────────────
+      # CI doesn't have a developer's local.properties, so we create a minimal
+      # one that points to the pre-installed Android SDK on the runner and sets
+      # an empty OAuth client ID (acceptable for a build-only debug APK).
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          echo "oauth.client_id=" >> local.properties
+
+      # ── 5. Build ─────────────────────────────────────────────────────────────
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      # ── 6. Upload artifact ───────────────────────────────────────────────────
+      # The APK is retained for 14 days.  Anyone with read access to the repo
+      # can download it from the Actions run page and install it on a device.
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoogleAc-debug-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
