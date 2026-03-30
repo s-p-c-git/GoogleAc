@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GoogleAc — Multi-Account Drive Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ── App shell ─────────────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- ── Auth screen ───────────────────────────────────────────────────── -->
+  <div id="screen-auth" class="screen" hidden>
+    <div class="auth-card">
+      <div class="auth-logo">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z" fill="currentColor"/>
+        </svg>
+      </div>
+      <h1 class="auth-title">GoogleAc</h1>
+      <p class="auth-subtitle">Multi-Account Google Drive Manager</p>
+      <p id="auth-error-msg" class="auth-error" hidden></p>
+      <button id="btn-sign-in" class="btn btn-primary btn-large">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/></svg>
+        Sign in with Google
+      </button>
+      <p class="auth-hint" id="auth-not-configured" hidden>
+        ⚠ Server is not configured. Copy <code>.env.example</code> to <code>.env</code> and fill in your OAuth credentials, then restart the server.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Feature enablement screen ────────────────────────────────────── -->
+  <div id="screen-feature-enablement" class="screen" hidden>
+    <div class="fe-card">
+      <h2 class="fe-title">Choose features</h2>
+      <p class="fe-subtitle" id="fe-account-label"></p>
+      <p class="fe-desc">Select which Google services you want to use with this account.</p>
+
+      <div class="fe-list" id="fe-toggle-list">
+        <label class="fe-toggle">
+          <span class="fe-toggle-info">
+            <span class="fe-toggle-name">Google Drive</span>
+            <span class="fe-toggle-desc">Browse, search and manage your Drive files</span>
+          </span>
+          <input type="checkbox" name="DRIVE" checked />
+          <span class="fe-toggle-track"></span>
+        </label>
+        <label class="fe-toggle">
+          <span class="fe-toggle-info">
+            <span class="fe-toggle-name">Google Calendar</span>
+            <span class="fe-toggle-desc">View and manage calendar events (Phase 2)</span>
+          </span>
+          <input type="checkbox" name="CALENDAR" />
+          <span class="fe-toggle-track"></span>
+        </label>
+        <label class="fe-toggle">
+          <span class="fe-toggle-info">
+            <span class="fe-toggle-name">Google Tasks</span>
+            <span class="fe-toggle-desc">Manage your task lists and to-dos (Phase 2)</span>
+          </span>
+          <input type="checkbox" name="TASKS" />
+          <span class="fe-toggle-track"></span>
+        </label>
+        <label class="fe-toggle">
+          <span class="fe-toggle-info">
+            <span class="fe-toggle-name">AI Summarizer</span>
+            <span class="fe-toggle-desc">On-device AI summaries of your Drive documents</span>
+          </span>
+          <input type="checkbox" name="AI_SUMMARIZER" />
+          <span class="fe-toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="fe-actions">
+        <button id="btn-enable-all" class="btn btn-text">Enable all</button>
+        <div class="fe-actions-right">
+          <button id="btn-fe-skip" class="btn btn-outlined">Skip for now</button>
+          <button id="btn-fe-continue" class="btn btn-primary">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Drive screen ──────────────────────────────────────────────────── -->
+  <div id="screen-drive" class="screen" hidden>
+
+    <!-- Top app bar -->
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <span class="app-bar-title">GoogleAc</span>
+        <div id="account-chips" class="account-chips"></div>
+      </div>
+      <div class="app-bar-actions">
+        <button id="btn-add-account" class="btn btn-outlined btn-sm" title="Add another Google account">+ Add account</button>
+      </div>
+    </header>
+
+    <!-- Search + filter bar -->
+    <div class="search-bar-wrap">
+      <div class="search-input-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="search" id="search-input" placeholder="Search files…" autocomplete="off" />
+      </div>
+      <div class="filter-chips" id="filter-chips">
+        <button class="chip chip-active" data-mime="">All</button>
+        <button class="chip" data-mime="application/vnd.google-apps.folder">Folders</button>
+        <button class="chip" data-mime="application/vnd.google-apps.document">Docs</button>
+        <button class="chip" data-mime="application/vnd.google-apps.spreadsheet">Sheets</button>
+        <button class="chip" data-mime="application/pdf">PDFs</button>
+      </div>
+    </div>
+
+    <!-- List + detail pane -->
+    <div class="list-detail-scaffold">
+
+      <!-- File list pane -->
+      <div class="list-pane" id="list-pane">
+        <div id="file-list-loading" class="list-loading" hidden>
+          <div class="spinner"></div>
+          <span>Loading files…</span>
+        </div>
+        <div id="file-list-empty" class="list-empty" hidden>
+          <p>No files found.</p>
+        </div>
+        <ul id="file-list" class="file-list"></ul>
+        <button id="btn-load-more" class="btn btn-text btn-load-more" hidden>Load more…</button>
+      </div>
+
+      <!-- Detail pane -->
+      <aside class="detail-pane" id="detail-pane">
+        <div id="detail-placeholder" class="detail-placeholder">
+          <svg viewBox="0 0 24 24" width="48" height="48" aria-hidden="true"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+          <p>Select a file to see details</p>
+        </div>
+        <div id="detail-content" hidden>
+          <div class="detail-header">
+            <div class="detail-icon" id="detail-icon"></div>
+            <div class="detail-title-wrap">
+              <h3 id="detail-name" class="detail-name"></h3>
+              <span id="detail-account-badge" class="account-badge"></span>
+            </div>
+          </div>
+          <dl class="detail-meta" id="detail-meta"></dl>
+          <div id="detail-summary-wrap" class="detail-summary-wrap" hidden>
+            <h4 class="detail-summary-title">AI Summary</h4>
+            <p id="detail-summary-text" class="detail-summary-text"></p>
+          </div>
+          <div class="detail-actions" id="detail-actions"></div>
+        </div>
+      </aside>
+    </div>
+
+  </div><!-- /screen-drive -->
+
+</div><!-- /app -->
+
+<!-- ── Dialogs ─────────────────────────────────────────────────────────────── -->
+
+<!-- Rename dialog -->
+<dialog id="dlg-rename" class="modal">
+  <form method="dialog" class="modal-form">
+    <h3 class="modal-title">Rename file</h3>
+    <label class="form-label" for="rename-input">New name</label>
+    <input type="text" id="rename-input" class="form-input" required />
+    <div class="modal-actions">
+      <button type="button" id="btn-rename-cancel" class="btn btn-outlined">Cancel</button>
+      <button type="submit" id="btn-rename-ok" class="btn btn-primary">Rename</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Delete confirmation dialog -->
+<dialog id="dlg-delete" class="modal">
+  <div class="modal-form">
+    <h3 class="modal-title">Delete file?</h3>
+    <p id="dlg-delete-msg" class="modal-body"></p>
+    <div class="modal-actions">
+      <button type="button" id="btn-delete-cancel" class="btn btn-outlined">Cancel</button>
+      <button type="button" id="btn-delete-ok" class="btn btn-danger">Delete</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Move account picker dialog -->
+<dialog id="dlg-move" class="modal">
+  <div class="modal-form">
+    <h3 class="modal-title">Move to another account</h3>
+    <p class="modal-body">Select the destination account:</p>
+    <div id="dlg-move-accounts" class="move-account-list"></div>
+    <div class="modal-actions">
+      <button type="button" id="btn-move-cancel" class="btn btn-outlined">Cancel</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Toast notification -->
+<div id="toast" class="toast" aria-live="polite" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

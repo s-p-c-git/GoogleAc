@@ -9,3 +9,7 @@
 .cxx
 local.properties
 **/build/
+
+# Webapp
+webapp/node_modules/
+webapp/.env
