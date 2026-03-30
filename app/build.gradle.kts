@@ -20,9 +20,10 @@ android {
 
         // Read oauth.client_id from local.properties (kept out of VCS).
         // Developers must add:  oauth.client_id=<your-client-id>.apps.googleusercontent.com
-        val localProps = java.util.Properties().apply {
-            val f = rootProject.file("local.properties")
-            if (f.exists()) load(f.inputStream())
+        val localProps = java.util.Properties()
+        val localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) {
+            localPropsFile.inputStream().use { localProps.load(it) }
         }
         buildConfigField(
             "String",
